@@ -6,6 +6,8 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -26,7 +28,7 @@ TIM_HandleTypeDef htim3;
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
-uint8_t uart_rx_buffer[10];
+uint8_t uart_rx_buffer[4];
 uint32_t frequency = 0;
 /* USER CODE END PV */
 
@@ -55,7 +57,7 @@ int main(void)
   /* MCU Configuration--------------------------------------------------------*/
 
   /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
-  HAL_Init();
+HAL_Init();
 
   /* USER CODE BEGIN Init */
   /* USER CODE END Init */
@@ -72,29 +74,13 @@ int main(void)
   MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
+  HAL_UART_Receive_IT(&huart2, uart_rx_buffer, 4);
 
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  
-  // TODO: Interrupt-os UART implementálása
-  while (1)
-      {
-          if (HAL_UART_Receive(&huart2, uart_rx_buffer, sizeof(uart_rx_buffer), HAL_MAX_DELAY) == HAL_OK)
-          {
-              frequency = atoi((char *)uart_rx_buffer);
-
-              if (frequency > 0) {
-                  // PWM beállítása a megfelelő frekvenciához
-                  uint32_t period = HAL_RCC_GetPCLK1Freq() / (htim3.Init.Prescaler + 1) / frequency;
-                  __HAL_TIM_SET_AUTORELOAD(&htim3, period - 1);
-                  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, period / 2);
-              } else {
-                  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);
-              }
-          }
-      }
+  while(1) /*HAL_UART_Receive_IT(&huart2, uart_rx_buffer, 4)*/;
 
     /* USER CODE END WHILE */
 
@@ -272,6 +258,25 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+    if (huart->Instance == USART2)
+    {
+        // Ellenőrizzük a kapott adatokat
+        frequency = atoi((char *)uart_rx_buffer);  // Karakterlánc konvertálása számmá
+        if (frequency < 900) {
+        	// PWM beállítása a megfelelő frekvenciához
+            uint32_t period = HAL_RCC_GetPCLK1Freq() / (htim3.Init.Prescaler + 1) / frequency;
+            __HAL_TIM_SET_AUTORELOAD(&htim3, period - 1);
+            __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, period / 2);
+        } else {
+        	__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);
+       }
+    }
+}
+
+
+
 /* USER CODE END 4 */
 
 /**

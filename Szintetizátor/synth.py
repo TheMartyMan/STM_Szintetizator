@@ -3,7 +3,7 @@ from pynput import keyboard
 import serial
 
 # UART
-ser = serial.Serial('COM13', 9600)
+ser = serial.Serial('COM14', 9600)
 
 pygame.init()
 screen = pygame.display.set_mode((1200, 500))
@@ -11,24 +11,24 @@ pygame.display.set_caption("Szintetizátor")
 
 # Frekvenciák
 key_frequencies = {
-    'C': 261,
-    'D': 294,
-    'E': 330,
-    'F': 349,
-    'G': 392,
-    'A': 440,
-    'B': 494
+    'c': 261,
+    'd': 294,
+    'e': 330,
+    'f': 349,
+    'g': 392,
+    'a': 440,
+    'b': 494
 }
 
 # Gombok
 piano_keys = {
-    'C': pygame.Rect(50, 50, 80, 100),
-    'D': pygame.Rect(150, 50, 80, 100),
-    'E': pygame.Rect(250, 50, 80, 100),
-    'F': pygame.Rect(350, 50, 80, 100),
-    'G': pygame.Rect(450, 50, 80, 100),
-    'A': pygame.Rect(550, 50, 80, 100),
-    'B': pygame.Rect(650, 50, 80, 100)
+    'c': pygame.Rect(50, 50, 80, 100),
+    'd': pygame.Rect(150, 50, 80, 100),
+    'e': pygame.Rect(250, 50, 80, 100),
+    'f': pygame.Rect(350, 50, 80, 100),
+    'g': pygame.Rect(450, 50, 80, 100),
+    'a': pygame.Rect(550, 50, 80, 100),
+    'b': pygame.Rect(650, 50, 80, 100)
 }
 
 # Gombok rajzolása
@@ -45,26 +45,28 @@ def draw_keys():
 # Billentyűzet lenyomás
 def on_press(key):
     try:
-        if key.char in key_frequencies:
-            play_tone(key.char)
+        if hasattr(key, 'char') and key.char in key_frequencies:
+            frequency = key_frequencies[key.char]
+            ser.write(f"{frequency}\n".encode())  # Frekvencia küldése UART-on
+            print(f"Frekvencia: {frequency} Hz küldése")
     except AttributeError:
         pass
 
-# Billentyűzet elengedés
+# Billentyűzet felengedés
 def on_release(key):
-    stop_tone()
+    if hasattr(key, 'char') and key.char in key_frequencies:
+        ser.write("900\n".encode())  # Elnémítja a hangot
+        print("Elnémítva.")
 
 # Adott hang lejátszása
 def play_tone(key):
     frequency = key_frequencies.get(key)
-    if frequency:
+    if frequency < 900:
         ser.write(f"{frequency}\n".encode())
-        print(f"Elküldve: {frequency} Hz ")
-
-# Némítás
-def stop_tone():
-    ser.write(b"0\n")
-    print("Néma")
+        print(f"Elküldve: {frequency} Hz")
+    else:
+        ser.write(f"{frequency}\n".encode())
+        print("Elnémítva.")
 
 # Pygame listener
 listener = keyboard.Listener(on_press=on_press, on_release=on_release)
@@ -82,8 +84,6 @@ while running:
             for key, rect in piano_keys.items():
                 if rect.collidepoint(event.pos):
                     play_tone(key)
-        elif event.type == pygame.MOUSEBUTTONUP:
-            stop_tone()
 
     pygame.display.flip()
 
